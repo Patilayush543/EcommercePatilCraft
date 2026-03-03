@@ -7,29 +7,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-patilcraft-key-2026")
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# In production we explicitly disable debug and lock down hosts.
+DEBUG = False  # ensure this is off on Render
 
-# On Render, automatically add the Render domain
-if 'RENDER' in os.environ:
-    ALLOWED_HOSTS.append('.onrender.com')
+# explicit allowed hosts including Render service domain and locals
+ALLOWED_HOSTS = ['patilcraft.onrender.com', 'localhost', '127.0.0.1']
+
+# previous dynamic logic left for reference (commented out)
+# ALLOWED_HOSTS = [h for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h]
+# if 'RENDER' in os.environ:
+#     ALLOWED_HOSTS.append('.onrender.com')
+# ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 # --- CSRF Security Configuration ---
-# Add trusted origins for CSRF protection in production
+# Only trust HTTPS origin of deployed site
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-    'https://multi-vendor-e-commerce-portal-1.onrender.com',  # Your specific Render domain
+    'https://patilcraft.onrender.com',
 ]
 
-# Add from environment variable if set
-if os.getenv('CSRF_TRUSTED_ORIGINS'):
-    CSRF_TRUSTED_ORIGINS.extend(os.getenv('CSRF_TRUSTED_ORIGINS', '').split(','))
+# keep local dev origins if needed (commented)
+# CSRF_TRUSTED_ORIGINS += ['http://localhost:8000', 'http://127.0.0.1:8000']
 
-# On Render, automatically trust the render domain
-if 'RENDER' in os.environ:
-    if 'RENDER_EXTERNAL_URL' in os.environ:
-        CSRF_TRUSTED_ORIGINS.append(os.environ['RENDER_EXTERNAL_URL'])
+# dedupe
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(CSRF_TRUSTED_ORIGINS))
 
 # --- 2. APPS & MIDDLEWARE ---
 INSTALLED_APPS = [
@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise must sit directly after SecurityMiddleware to work correctly
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this for serving static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -147,19 +148,17 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# --- 9. JAZZMIN ADMIN STYLING ---
+# --- 9. JAZZMIN ADMIN STYLING (Modern Dark Theme) ---
 JAZZMIN_SETTINGS = {
     "site_title": "Patilcraft Admin",
-    "site_header": "Patilcraft",
-    "site_brand": "Patilcraft Admin",
+    "site_header": "Patilcraft Admin Dashboard",
+    "site_brand": "Patilcraft",
     "site_logo": "image/logo.png",  
     "login_logo": "image/logo.png",
+    "login_logo_below": True,
     "site_logo_classes": "img-circle",
-    "custom_css": "css/admin_dashboard.css",
-    "custom_js": "js/admin_navbar.js",
-    "login_logo_below": False,
-    "welcome_sign": "Welcome to Patilcraft Management Portal",
-    "copyright": "Patilcraft Ltd © 2026",
+    "welcome_sign": "<span style='font-size: 24px; font-weight: bold; color: #1a2a6c;'> Welcome to Patilcraft Admin</span><br><span style='color: #666; font-size: 14px;'>Manage your e-commerce platform</span>",
+    "copyright": "Patilcraft © 2026 | Admin Portal",
     "search_model": "auth.User",
     "user_avatar": None,
     "show_ui_builder": False,
@@ -168,12 +167,18 @@ JAZZMIN_SETTINGS = {
         {"app": "myapp", "icon": "fas fa-check-circle", "name": "App Management"},
     ],
     "topmenu_links": [
-        {"name": "Dashboard",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Dashboard",  "url": "admin:index", "permissions": ["auth.view_user"], "icon": "fas fa-home"},
         {"name": "View Website", "url": "/", "new_window": True, "icon": "fas fa-globe"},
+        {"name": "Documentation", "url": "https://www.djangoproject.com/", "new_window": True, "icon": "fas fa-book"},
+    ],
+    "usermenu_links": [
+        {"name": "Support", "url": "/", "icon": "fas fa-life-ring"},
     ],
     "show_sidebar": True,
     "navigation_expanded": True,
     "hide_apps": [],
+    "custom_css": "css/admin_dashboard.css",
+    "custom_js": "js/admin_navbar.js",
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
@@ -198,12 +203,12 @@ JAZZMIN_SETTINGS = {
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "theme": "flatly",
-    "navbar": "navbar-whitespace navbar-light",
+    "theme": "darkly",
+    "navbar": "navbar-dark navbar-dark",
     "navbar_fixed": True,
-    "sidebar": "sidebar-light",
-    "accent": "accent-teal",
-    "brand_colour": "navbar-whitespace",
+    "sidebar": "sidebar-dark-primary",
+    "accent": "accent-cyan",
+    "brand_colour": "navbar-dark-primary",
     "logo_colour": True,
     "button_classes": {
         "primary": "btn-primary",
@@ -238,12 +243,14 @@ else:
     EMAIL_BACKEND = os.getenv('DJANGO_EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 
 # --- 11. PRODUCTION SECURITY HELPERS (use env vars when deploying) ---
+# DEBUG is already False above, so this block will run in production
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 if not DEBUG:
     SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '3600'))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True').lower() in ('1', 'true', 'yes')
     SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() in ('1', 'true', 'yes')
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('1', 'true', 'yes')
@@ -264,3 +271,8 @@ SECURITY_REMINDERS = {
     'provide_secret': 'Set SECRET_KEY in environment',
     'configure_allowed_hosts': 'Set ALLOWED_HOSTS env var',
 }
+
+# simple diagnostic printout when the process starts (appears in Render logs)
+if not DEBUG:
+    # this will show up in gunicorn/Render logs and help diagnose host/csrf issues
+    print(f"[settings] DEBUG={DEBUG} ALLOWED_HOSTS={ALLOWED_HOSTS} CSRF_TRUSTED_ORIGINS={CSRF_TRUSTED_ORIGINS}")
