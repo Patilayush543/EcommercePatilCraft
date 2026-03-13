@@ -6,12 +6,11 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-patilcraft-key-2026")
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-patilapx-key-2026")
 # In production we explicitly disable debug and lock down hosts.
 DEBUG = False  # ensure this is off on Render
 
 DEFAULT_ALLOWED_HOSTS = [
-    'patilcraft.onrender.com',
     'multi-vendor-e-commerce-portal-1.onrender.com',
     'patilapx.tech',
     'www.patilapx.tech',
@@ -31,7 +30,6 @@ ALLOWED_HOSTS = list(dict.fromkeys(DEFAULT_ALLOWED_HOSTS + env_allowed_hosts))
 
 # --- CSRF Security Configuration ---
 DEFAULT_CSRF_TRUSTED_ORIGINS = [
-    'https://patilcraft.onrender.com',
     'https://multi-vendor-e-commerce-portal-1.onrender.com',
     'https://patilapx.tech',
     'https://www.patilapx.tech',
@@ -163,15 +161,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # --- 9. JAZZMIN ADMIN STYLING (Modern Dark Theme) ---
 JAZZMIN_SETTINGS = {
-    "site_title": "Patilcraft Admin",
-    "site_header": "Patilcraft Admin Dashboard",
-    "site_brand": "Patilcraft",
+    "site_title": "PatilApx Admin",
+    "site_header": "PatilApx Admin Dashboard",
+    "site_brand": "PatilApx",
     "site_logo": "image/logo.png",  
     "login_logo": "image/logo.png",
     "login_logo_below": True,
     "site_logo_classes": "img-circle",
-    "welcome_sign": "<span style='font-size: 24px; font-weight: bold; color: #1a2a6c;'> Welcome to Patilcraft Admin</span><br><span style='color: #666; font-size: 14px;'>Manage your e-commerce platform</span>",
-    "copyright": "Patilcraft © 2026 | Admin Portal",
+    "welcome_sign": "<span style='font-size: 24px; font-weight: bold; color: #1a2a6c;'> Welcome to PatilApx Admin</span><br><span style='color: #666; font-size: 14px;'>Manage your e-commerce platform</span>",
+    "copyright": "PatilApx © 2026 | Admin Portal",
     "search_model": "auth.User",
     "user_avatar": None,
     "show_ui_builder": False,
@@ -243,7 +241,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- 10. EMAIL (console during development, optional SMTP via env) ---
 # For production set EMAIL_HOST in environment variables to enable SMTP
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@patilcraft.local')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@patilapx.tech')
 if os.getenv('EMAIL_HOST'):
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = os.getenv('EMAIL_HOST')
@@ -258,6 +256,7 @@ else:
 # --- 11. PRODUCTION SECURITY HELPERS (use env vars when deploying) ---
 # DEBUG is already False above, so this block will run in production
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_NAME = 'patilapx_sessionid'
 CSRF_COOKIE_SECURE = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 

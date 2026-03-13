@@ -18,11 +18,120 @@ from django.core.mail import EmailMessage
 from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import get_template
+from decimal import Decimal
 import json
 import hmac
 import hashlib
 import io
+from types import SimpleNamespace
 from django.utils import timezone
+
+SESSION_CART_KEY = 'guest_cart'
+
+
+def _normalize_quantity(raw_quantity):
+    try:
+        quantity = int(raw_quantity)
+    except (TypeError, ValueError):
+        quantity = 1
+    return max(1, quantity)
+
+
+def _get_session_cart(request):
+    return request.session.get(SESSION_CART_KEY, {})
+
+
+def _save_session_cart(request, cart_data):
+    if cart_data:
+        request.session[SESSION_CART_KEY] = cart_data
+    else:
+        request.session.pop(SESSION_CART_KEY, None)
+    request.session.modified = True
+
+
+def _add_to_session_cart(request, product, quantity):
+    cart_data = _get_session_cart(request)
+    product_key = str(product.id)
+    existing_quantity = cart_data.get(product_key, 0)
+    try:
+        existing_quantity = int(existing_quantity)
+    except (TypeError, ValueError):
+        existing_quantity = 0
+    cart_data[product_key] = max(0, existing_quantity) + quantity
+    _save_session_cart(request, cart_data)
+
+
+def _build_session_cart_items(request):
+    cart_data = _get_session_cart(request)
+    if not cart_data:
+        return [], Decimal('0.00')
+
+    products = Product.objects.filter(id__in=cart_data.keys())
+    product_map = {str(product.id): product for product in products}
+    items = []
+    total = Decimal('0.00')
+    cleaned_cart = {}
+
+    for product_id, raw_quantity in cart_data.items():
+        product = product_map.get(str(product_id))
+        if not product:
+            continue
+
+        quantity = _normalize_quantity(raw_quantity)
+        line_total = product.price * quantity
+        total += line_total
+        cleaned_cart[str(product.id)] = quantity
+        items.append(SimpleNamespace(
+            id=product.id,
+            product=product,
+            product_name=product.title,
+            price=product.price,
+            quantity=quantity,
+            total_price=line_total,
+        ))
+
+    if cleaned_cart != cart_data:
+        _save_session_cart(request, cleaned_cart)
+
+    return items, total
+
+
+def _merge_session_cart_into_orders(request, user):
+    cart_data = _get_session_cart(request)
+    if not cart_data:
+        return
+
+    products = Product.objects.filter(id__in=cart_data.keys())
+    product_map = {str(product.id): product for product in products}
+
+    for product_id, raw_quantity in cart_data.items():
+        product = product_map.get(str(product_id))
+        if not product:
+            continue
+
+        quantity = _normalize_quantity(raw_quantity)
+        existing_order = CartOrder.objects.filter(
+            user=user,
+            product=product,
+            status='pending',
+        ).order_by('id').first()
+
+        if existing_order:
+            existing_order.quantity += quantity
+            existing_order.price = product.price
+            existing_order.product_name = product.title
+            existing_order.save(update_fields=['quantity', 'price', 'product_name'])
+        else:
+            CartOrder.objects.create(
+                user=user,
+                product=product,
+                product_name=product.title,
+                price=product.price,
+                quantity=quantity,
+                status='pending',
+            )
+
+    _save_session_cart(request, {})
 
 # PDF libraries: prefer xhtml2pdf (works on all platforms)
 try:
@@ -70,6 +179,7 @@ def register_user(request):
             # This save() method in your forms.py creates the User + Profile
             user = form.save() 
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            _merge_session_cart_into_orders(request, user)
             return redirect('/') 
         else:
             # Return form with errors to be displayed in template
@@ -91,6 +201,7 @@ def login_user(request):
             user = authenticate(request, username=user_obj.username, password=password)
             if user is not None:
                 login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                _merge_session_cart_into_orders(request, user)
                 next_url = request.POST.get('next')
                 return redirect(next_url if next_url else '/')
             else:
@@ -171,13 +282,12 @@ def product_detail(request, cat, id):
     })
 
 def add_to_cart(request, p_id):
+    item = get_object_or_404(Product, id=p_id)
+    quantity = _normalize_quantity(request.POST.get('quantity', 1) if request.method == 'POST' else 1)
+
     if not request.user.is_authenticated:
-        return redirect('auth_view')
-    item = Product.objects.get(id=p_id)
-    
-    # Get quantity from POST or default to 1
-    quantity = int(request.POST.get('quantity', 1)) if request.method == 'POST' else 1
-    quantity = max(1, quantity)  # Ensure at least 1
+        _add_to_session_cart(request, item, quantity)
+        return redirect('cart_view')
     
     CartOrder.objects.create(
         user=request.user, 
@@ -190,16 +300,21 @@ def add_to_cart(request, p_id):
     return redirect('cart_view')
 
 def cart_view(request):
-    if not request.user.is_authenticated:
-        return redirect('auth_view')
-    items = CartOrder.objects.filter(user=request.user, status='pending')
-    total = sum(item.total_price for item in items)  # Use total_price property
+    if request.user.is_authenticated:
+        _merge_session_cart_into_orders(request, request.user)
+        items = CartOrder.objects.filter(user=request.user, status='pending')
+        total = sum(item.total_price for item in items)
+    else:
+        items, total = _build_session_cart_items(request)
     return render(request, "cart.html", {"items": items, "total": total})
 
 def remove_from_cart(request, item_id):
-    if not request.user.is_authenticated:
-        return redirect('auth_view')
-    CartOrder.objects.filter(user=request.user, id=item_id).delete()
+    if request.user.is_authenticated:
+        CartOrder.objects.filter(user=request.user, id=item_id).delete()
+    else:
+        cart_data = _get_session_cart(request)
+        cart_data.pop(str(item_id), None)
+        _save_session_cart(request, cart_data)
     return redirect('cart_view')
 
 def checkout_view(request):

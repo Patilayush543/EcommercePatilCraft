@@ -7,7 +7,7 @@ from .models import CartOrder, Product, ContactMessage, Profile
 class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
-    verbose_name_plural = 'Patilcraft Profile Info'
+    verbose_name_plural = 'PatilApx Profile Info'
 
 class CustomUserAdmin(UserAdmin):
     inlines = (ProfileInline, )
