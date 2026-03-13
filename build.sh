@@ -1,6 +1,8 @@
 #!/bin/bash
 # Build script for Render deployment
 
+set -euo pipefail
+
 # Install dependencies
 pip install -r requirements.txt
 

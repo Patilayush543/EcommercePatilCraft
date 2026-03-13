@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: patilapx-web
+    env: python
+    buildCommand: "bash build.sh"
+    startCommand: "gunicorn ECommerce.wsgi:application"
