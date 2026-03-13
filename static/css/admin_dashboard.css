@@ -92,21 +92,36 @@ body.login {
 #login img,
 .login img,
 #login-form img {
-    max-width: 90px !important;
-    height: 90px !important;
-    width: 90px !important;
-    margin-bottom: 15px !important;
+    max-width: 170px !important;
+    height: auto !important;
+    width: auto !important;
+    margin: 0 auto 16px auto !important;
+    display: block !important;
 }
 
 #login-container img,
 .login-logo img,
 #login .login-logo {
-    max-width: 90px !important;
+    max-width: 170px !important;
 }
 
 #login .login-logo img {
-    max-width: 90px !important;
-    height: 90px !important;
+    max-width: 170px !important;
+    height: auto !important;
+    margin: 0 auto 12px auto !important;
+    display: block !important;
+}
+
+body.login .login-box .login-logo,
+body.login .login-logo,
+body.login #header {
+    text-align: center !important;
+}
+
+body.login .login-box-msg,
+body.login .login-page .login-box-msg,
+body.login #login p {
+    text-align: center !important;
 }
 
 #login .login-body {
@@ -225,6 +240,20 @@ body.login {
     color: #dc2626 !important;
     margin-right: 0.5rem !important;
     font-weight: bold !important;
+}
+
+/* Keep invalid-password feedback obvious on login attempts */
+#login .errornote,
+body.login .errornote,
+body.login .alert-danger {
+    display: block !important;
+    background: #fff1f2 !important;
+    border: 1px solid #ef4444 !important;
+    border-radius: 8px !important;
+    color: #991b1b !important;
+    font-weight: 600 !important;
+    margin: 0 0 16px 0 !important;
+    padding: 10px 12px !important;
 }
 
 /* ============================================================================ */
